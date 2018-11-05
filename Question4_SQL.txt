@@ -1,0 +1,2 @@
+SELECT * FROM Patients 
+WHERE Lastname LIKE 'B*'

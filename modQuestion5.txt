@@ -1,0 +1,208 @@
+Attribute VB_Name = "modQuestion5"
+'*************************************************************
+' Question 5
+'
+' Revision History
+' Date       Developer       Description
+' 03-Nov-18  M Gore          Initial Version
+'
+' Given an xml file, write a function that will return the
+' patient's mrn as a string.
+'*************************************************************
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Error Message Templates
+' These constants are used to standardize error message format
+' throughout the module.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Const gERRORMSGGENERIC  As String = "@ErrDesc (@ErrNum) " & vbCrLf & "Module:@Module" & vbCrLf & "Function:@Function"
+Private Const gERRORTEXT513     As String = "XML document failed to load."
+Private Const gERRORTEXT514     As String = "Invalid fieldname supplied: "
+Private Const gERRORTEXT515     As String = "No tag found, check querystring"
+Private Const gINFORMATION      As String = "Information"
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' Test Mode flag
+' For testing/debugging set gTestMode = True to print error message
+' information to the Immediate Pane.  When False, error information
+' is displayed in a message box.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Const gTestMode As Boolean = True
+
+'''''''''''''''''''''''''''
+' Used for error handling
+'''''''''''''''''''''''''''
+Private Const mModuleName = "Question5"
+
+Public Function GetXMLFieldValue(ByVal sFilePath As String, sFieldName As String) As String
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' GetXMLFieldValue
+' This function accepts the full path of the target xml file as
+' a string, and a field name as a string and returns a string
+' representing the text found within the tag that is mapped to
+' the value of sFieldName.
+'
+' sFieldName Allowable Values
+' MRN       - Returns the value in the MRN tag
+' Account   - Returns the value in the ACCOUNT_NUM tag
+' OrderId   - Returns the value in the PLACER_ORDER_NUM tag
+'
+' Required references:
+' Microsoft XML
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    Dim xmlDoc As MSXML2.DOMDocument
+    Dim xmlNode As MSXML2.IXMLDOMNode
+    Dim xmlPE As MSXML2.IXMLDOMParseError
+    Dim sQuery As String
+    Dim sErrMsg As String
+    Dim sErrNum As String
+    Dim sErrDesc As String
+    Dim sPErrDesc As String
+    Dim sFunctionName As String
+    
+    '''''''''''''''''''''''''''
+    ' Used for error handling
+    '''''''''''''''''''''''''''
+    sFunctionName = "GetXMLFieldValue"
+    
+    On Error GoTo Catch
+    
+    Set xmlDoc = New MSXML2.DOMDocument
+    
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' The select statement represents a crosswalk between
+    ' the user-supplied field name and the associated
+    ' tag in the file.  sQuery contains the queryString to be
+    ' passed to the SelectSingleNode method.  If sFieldName
+    ' is empty or unrecognized as a valid case, then raise
+    ' error 514 for invalid fieldname.
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    Select Case sFieldName
+        Case "MRN"
+            sQuery = "/XML/ENCOUNTER/PATIENT/MRN"
+        Case "Account"
+            sQuery = "/XML/ENCOUNTER/ACCOUNT_NUM"
+        Case "OrderId"
+            sQuery = "/XML/ORDER/PLACER_ORDER_NUMBER0"
+        Case Else
+            sErrDesc = gERRORTEXT514 & sFieldName
+            Err.Raise vbErrorObjectNumber + 514, sFunctionName, sErrDesc
+    End Select
+    
+    '''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' Load the xml file into the document object.
+    ' If load succeeds set xmlNode to the object
+    ' returned by SelectSingleNode, else create
+    ' a parse error object to build the error message,
+    ' then raise an error 513 indicating that document
+    ' load failed.
+    '''''''''''''''''''''''''''''''''''''''''''''''''''
+    If xmlDoc.Load(sFilePath) Then
+        Set xmlNode = xmlDoc.SelectSingleNode(sQuery)
+        
+        ''''''''''''''''''''''''''''''''''''''''''''''''
+        ' If no Node is returned to xmlNode, then raise
+        ' error 515 indicating that something is wrong
+        ' with the querystring.  Else return the text
+        ' of xmlNode.
+        ''''''''''''''''''''''''''''''''''''''''''''''''
+        If xmlNode Is Nothing Then
+            sErrDesc = gERRORTEXT515 & sFieldName
+            Err.Raise vbErrorObjectNumber + 515, sFunctionName, sErrDesc
+        Else
+            GetXMLFieldValue = xmlNode.Text
+        End If
+    Else
+        Set xmlPE = xmlDoc.parseError
+        With xmlPE
+            sPErrDesc = gERRORTEXT513 & vbCrLf & _
+            "Error #: " & .ErrorCode & ": " & .reason & vbCrLf & _
+            "Line #: " & .Line & vbCrLf & _
+            "Line Position: " & .linepos & vbCrLf & _
+            "Position in File: " & .filepos & vbCrLf & _
+            "Source Text: " & .srcText & vbCrLf & _
+            "Document URL: " & .URL
+        End With
+        
+        Err.Raise vbErrorObjectNumber + 513, sFunctionName, sPErrDesc
+    End If
+    
+    Exit Function
+Catch:
+    sErrNum = Err.Number
+    sErrDesc = Err.Description
+    sErrMsg = CreateGenericErrMsg(sErrNum, sErrDesc, mModuleName, Err.Source)
+    DisplayMessage sErrMsg, vbCritical
+End Function
+
+Private Function CreateGenericErrMsg(sErrNumber As String, sErrDescription As String, sModule As String, sFunction As String, Optional sAddtlMsg As String) As String
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' CreateGenericErrMsg
+' This function accepts the error number, the error description,
+' the module and function where the error was raised, as well as
+' the sheetname and additional information, if applicable.  It
+' returns a formatted error message, ready for display.
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    Dim sMessage As String
+    Dim sErrMsg As String
+    Dim sErrNum As String
+    Dim sErrDesc As String
+    Dim sFunctionName As String
+    
+    On Error GoTo Catch
+    
+    ''''''''''''''''''''''''''
+    ' Used For Error handling
+    ''''''''''''''''''''''''''
+    sFunctionName = "CreateGenericErrMsg"
+    
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' If no sheetname, then remove the @Sheet place holder.
+    ' Account for any additional messages supplied.  Substitute
+    ' place holders with supplied informatoin.
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    If (sAddtlMsg <> "") Then
+        sErrDescription = sErrDescription & " " & sAddtlMsg
+    End If
+    
+    sMessage = gERRORMSGGENERIC
+    sMessage = WorksheetFunction.Substitute(sMessage, "@ErrNum", sErrNumber)
+    sMessage = WorksheetFunction.Substitute(sMessage, "@ErrDesc", sErrDescription)
+    sMessage = WorksheetFunction.Substitute(sMessage, "@Module", sModule)
+    sMessage = WorksheetFunction.Substitute(sMessage, "@Function", sFunction)
+    
+    CreateGenericErrMsg = sMessage
+Exit Function
+
+Catch:
+    CreateGenericErrMsg = mModuleName & ":" & sFunctionName & vbCrLf & gGENERALERROR
+End Function
+
+Private Function DisplayMessage(ByVal sMessage As String, ByVal boxStyle As VbMsgBoxStyle, Optional ByVal sTitle As String)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' DisplayMessage
+' This function accepts message text, message box style and optional title.  It
+' then calls a MsgBox or writes the information to the immediate window.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+    '''''''''''''''''''''''''''''''''
+    ' If no title is provided
+    ' set the title to "Information"
+    '''''''''''''''''''''''''''''''''
+    If (sTitle = "") Then
+        sTitle = gINFORMATION
+    End If
+    
+    '''''''''''''''''''''''''''''''''''
+    ' Check Test Mode flag.  If false,
+    ' display error in msgBox, else
+    ' write to the Immediate window.
+    '''''''''''''''''''''''''''''''''''
+    If (gTestMode = False) Then
+        DisplayMessage = MsgBox(sMessage, boxStyle, sTitle)
+    Else
+        Debug.Print sMessage
+    End If
+End Function
+
+
