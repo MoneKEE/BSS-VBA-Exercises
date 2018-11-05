@@ -1,10 +1,10 @@
-Attribute VB_Name = "modQuestion3"
 '**************************************************************
 ' Question 3
 '
 ' Revision History
 ' Date       Developer       Description
 ' 03-Nov-18  M Gore          Initial Version
+' 05-Nov-18  M Gore          Added WaitForIExplorer
 '
 ' Use shdocvw.dll - MS Internet Control object to launch
 ' Windows Internet Explorer.  Navigate to Google.  Input
@@ -19,7 +19,7 @@ Attribute VB_Name = "modQuestion3"
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 Private Const gERRORMSGGENERIC  As String = "@ErrDesc (@ErrNum) " & vbCrLf & "Module:@Module" & vbCrLf & "Function:@Function"
 Private Const gERRORTEXT513     As String = "Could not launch Windows Internet Explorer."
-Private Const gERRORTEXT514     As String = "Website did not respond with reasonable time."
+Private Const gERRORTEXT514     As String = "Website did not respond within reasonable time."
 Private Const gINFORMATION      As String = "Information"
 
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -30,6 +30,9 @@ Private Const gINFORMATION      As String = "Information"
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 Private Const gTestMode As Boolean = True
 
+'''''''''''''''''''''''
+' For error handling
+'''''''''''''''''''''''
 Private Const mModuleName = "Question3"
 
 Public Sub GoogleSearch(Optional ByVal sSearchVal As String)
@@ -55,6 +58,9 @@ Public Sub GoogleSearch(Optional ByVal sSearchVal As String)
     Dim sErrNum As String
     Dim sErrDesc As String
     
+    '''''''''''''''''''''''
+    ' For error handling
+    '''''''''''''''''''''''
     sFunctionName = "GoogleSearch"
     
     On Error GoTo Catch
@@ -72,20 +78,12 @@ Public Sub GoogleSearch(Optional ByVal sSearchVal As String)
         oIE.Navigate ("www.Google.com")
     End If
     
-    ''''''''''''''''''''''''''''''''''''''''''''''
+    ''''''''''''''''''''''''''''''''''''''''''''''''
     ' Allow time for IE to load all page elements.
-    ' Time out after 10 seconds.
-    ''''''''''''''''''''''''''''''''''''''''''''''
-    vTimeStart = Now()
-    While Not oIE.readyState = READYSTATE_COMPLETE Or oIE.Busy
-        DoEvents
-        
-        vTimeStop = Now()
-        If vTimeStop >= vTimeStart + TimeValue("00:00:10") Then
-            Err.Raise vbObjectError + 514, , gERRORTEXT514
-        End If
-    Wend
-    
+    ' Time out after 10 seconds and raise error 514.
+    ''''''''''''''''''''''''''''''''''''''''''''''''
+    WaitForIExplorer oIE, "10"
+   
     '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
     ' oSearchTxt represents input element name="q", the search text.
     ' oSearchBtn represents input element name="btnK", the search button.
@@ -116,19 +114,11 @@ Public Sub GoogleSearch(Optional ByVal sSearchVal As String)
     ''''''''''''''''''''''''''''''''''''''''
     oSearchBtn.Click
     
-    ''''''''''''''''''''''''''''''''''''''''''''''
+    ''''''''''''''''''''''''''''''''''''''''''''''''
     ' Allow time for IE to load all page elements.
-    ' Time out after 10 seconds.
-    ''''''''''''''''''''''''''''''''''''''''''''''
-    vTimeStart = Now()
-    While Not oIE.readyState = READYSTATE_COMPLETE Or oIE.Busy
-        DoEvents
-        
-        vTimeStop = Now()
-        If vTimeStop >= vTimeStart + TimeValue("00:00:10") Then
-            Err.Raise vbObjectError + 514, , gERRORTEXT514
-        End If
-    Wend
+    ' Time out after 10 seconds and raise error 514.
+    ''''''''''''''''''''''''''''''''''''''''''''''''
+    WaitForIExplorer oIE, "10"
 
     '''''''''''''''''''''
     ' Garbage Collection
@@ -141,6 +131,33 @@ Catch:
     sErrDesc = Err.Description
     sErrMsg = CreateGenericErrMsg(sErrNum, sErrDesc, mModuleName, sFunctionName)
     DisplayMessage sErrMsg, vbCritical
+End Sub
+
+Private Sub WaitForIExplorer(ByVal oIE As InternetExplorer, ByVal sTimeOutSecs As String)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' WaitForIExplorer
+' This Sub accepts an InternetExplorer object and a string
+' representing the timeout threshold in seconds.  The loop
+' ends either when the IE object is back in a Ready State
+' and its LocationName is not "www.google.com" - this
+' means we never reached Google - or when
+' vTimeStop >= vTimeStart + sTimeOutSecs.  When
+' a timeout state is reached raise a 514 error,
+' unresponsive website.
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    Dim vTimeStart As Variant
+    Dim vTimeStop As Variant
+    
+    vTimeStart = Now()
+    
+    While Not oIE.readyState = READYSTATE_COMPLETE Or oIE.Busy Or oIE.LocationName = "http://www.google.com/"
+        DoEvents
+        
+        vTimeStop = Now()
+        If vTimeStop >= vTimeStart + TimeValue("00:00:" & sTimeOutSecs) Then
+            Err.Raise vbObjectError + 514, , gERRORTEXT514
+        End If
+    Wend
 End Sub
 
 Private Function CreateGenericErrMsg(sErrNumber As String, sErrDescription As String, sModule As String, sFunction As String, Optional sAddtlMsg As String) As String
